@@ -10,7 +10,6 @@
 .fb-container-show {
   box-shadow: 0 6px 100px 0 rgba(0, 0, 0, 0.35) !important;
   z-index: 999;
-  /* height: 150px; */
   width: 400px;
   opacity: 1;
   background: #fff;
@@ -19,9 +18,12 @@
 
 .fb-container-hide {
   z-index: 0;
-  /* height: 0; */
   width: 0;
   opacity: 0;
+}
+
+.fb-container-hide>* {
+  display: none;
 }
 
 .fb-options {

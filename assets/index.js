@@ -1,95 +1,98 @@
 // 滚动条在Y轴上的滚动距离
 function getScrollTop() {
-  let scrollTop = 0,
-    bodyScrollTop = 0,
-    documentScrollTop = 0;
+  var bodyScrollTop = 0;
+  var documentScrollTop = 0;
   if (document.body) {
     bodyScrollTop = document.body.scrollTop;
   }
   if (document.documentElement) {
     documentScrollTop = document.documentElement.scrollTop;
   }
-  scrollTop =
-    bodyScrollTop - documentScrollTop > 0 ? bodyScrollTop : documentScrollTop;
-  return scrollTop;
+  return bodyScrollTop - documentScrollTop > 0
+    ? bodyScrollTop
+    : documentScrollTop;
 }
 // 文档的总高度
 function getScrollHeight() {
-  let scrollHeight = 0,
-    bodyScrollHeight = 0,
-    documentScrollHeight = 0;
+  // var scrollHeight = 0;
+  // var bodyScrollHeight = 0;
+  // var documentScrollHeight = 0;
+  var bSH, dSH;
+
   if (document.body) {
     bSH = document.body.scrollHeight;
   }
   if (document.documentElement) {
     dSH = document.documentElement.scrollHeight;
   }
-  scrollHeight = bSH - dSH > 0 ? bSH : dSH;
-  return scrollHeight;
+  return bSH - dSH > 0 ? bSH : dSH;
 }
 
 // 浏览器窗口的高度
 function getWindowHeight() {
-  let windowHeight = 0;
-  if (document.compatMode == 'CSS1Compat') {
-    windowHeight = document.documentElement.clientHeight;
-  } else {
-    windowHeight = document.body.clientHeight;
-  }
-  return windowHeight;
+  return document.compatMode === 'CSS1Compat'
+    ? document.documentElement.clientHeight
+    : document.body.clientHeight;
 }
 
 (function() {
-  window.feedbackCache = {};
-  if (!document.getElementById('fb-container')) {
-    const feedbackElement = document.createElement('div');
-    feedbackElement.id = 'fb-container';
-    feedbackElement.className = 'fb-container-hide';
-    document.body.appendChild(feedbackElement);
+  window._feedbackCache = {};
+  window._feedbackOpts =
+    doczilla.getPlugin('doczilla-plugin-feedback').options || {};
+  doczilla.on('showArticle', function(opt) {
+    window._feedbackOpts.filename = opt.model.doc.filename;
+  });
+
+  document.addEventListener('scroll', () => {
+    var isShow = getScrollTop() + getWindowHeight() == getScrollHeight();
+    if (!window._feedbackElement) return;
+    if (isShow) {
+      var filename = window._feedbackOpts.filename;
+      var repo = window._feedbackOpts.repo;
+      var issue = window._feedbackOpts.issue;
+      if (!filename || window._feedbackCache[filename]) return;
+
+      window._fbShow(`
+      <h4>本文档对你是否有帮助？</h4>
+      <div class="fb-options">
+        <button class="fb-btn" onclick="_markAsRead('${filename}')">&#x1f603;&nbsp;有帮助</button>
+        ${
+          filename && repo
+            ? `<button class="fb-btn" onclick="_markAndOpen('${filename}', '${repo.replace(
+                /{{filename}}/gi,
+                filename
+              )}')">&#x1f64c;&nbsp;协助改进此文档</button>`
+            : ''
+        }
+        ${issue ? `<button class="fb-btn" onclick="_markAndOpen('${filename}', '${issue}')">&#x1f64b;&nbsp;提交一个 issue</button>` : ''}
+        ${!repo && !issue ? `<button class="fb-btn" onclick="_markAsRead('${filename}')">&#x1f623;&nbsp;没有帮助</button>` : ''}
+      </div>
+      `);
+    } else {
+      window._fbHide();
+    }
+  });
+
+  if (!window._feedbackElement) {
+    window._feedbackElement = document.createElement('div');
+    window._feedbackElement.id = 'fb-container';
+    window._feedbackElement.className = 'fb-container-hide';
+    document.body.appendChild(_feedbackElement);
   }
-  window.markAsRead = function(id) {
-    window.feedbackCache[id] = true;
-    document.getElementById('fb-container').className = 'fb-container-hide';
+  window._markAsRead = function(id) {
+    window._feedbackCache[id] = true;
+    window._feedbackElement.className = 'fb-container-hide';
   };
-  window.markAndOpen = function(id, url) {
-    window.markAsRead(id);
+  window._markAndOpen = function(id, url) {
+    window._markAsRead(id);
     window.open(url);
   };
+  window._fbShow = function(html) {
+    window._feedbackElement.innerHTML = html;
+    window._feedbackElement.className = 'fb-container-show';
+  };
+  window._fbHide = function() {
+    // window._feedbackElement.innerHTML = '';
+    window._feedbackElement.className = 'fb-container-hide';
+  };
 })();
-
-document.addEventListener('scroll', () => {
-  const isShow = getScrollTop() + getWindowHeight() == getScrollHeight();
-  const fbElement = document.getElementById('fb-container');
-  if (!fbElement) return;
-  if (isShow) {
-    const filename = (document.getElementById('_fb_filename') || {}).value;
-
-    if (!filename || window.feedbackCache[filename]) return;
-
-    const fileOriginUrl = (document.getElementById('_fb_repo') || {}).value;
-    const issueUrl = (document.getElementById('_fb_issue') || {}).value;
-
-    const html = `
-    <h4>本文档对你是否有帮助？</h4>
-    <div class="fb-options">
-      <button class="fb-btn" onclick="markAsRead('${filename}')">&#x1f603;&nbsp;有帮助</button>
-      <button class="fb-btn" onclick="markAndOpen('${filename}', '${fileOriginUrl}')">&#x1f64c;&nbsp;协助改进此文档</button>
-      <button class="fb-btn" onclick="markAndOpen('${filename}', '${issueUrl}')">&#x1f64b;&nbsp;提交一个 issue</button>
-    </div>
-    `;
-
-    fbElement.innerHTML = html;
-    fbElement.className = 'fb-container-show';
-    // console.log(fileOriginUrl, issueUrl);
-    // alert(window._feedbacks.filename);
-  } else {
-    fbElement.innerHTML = '';
-    fbElement.className = 'fb-container-hide';
-  }
-});
-
-// doczilla.on('showArticle', ({ model }) => {
-//   console.log('222', model);
-//   if (!model.doc) return;
-//   window._feedbacks.filename = model.doc.filename;
-// });
